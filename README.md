@@ -1,4 +1,4 @@
-<a href=https://oftnoftnoftn.github.io/BO3/BO3.html>BO3メモ帳</a><br><br>
+<a href=https://oftnoftnoftn.github.io/BO3/BO3.html>BO3記録帳</a><br><br>
 メソロギアのリーグ戦(BO3形式)の対戦記録をメモする為だけのメモ帳<br>
 BO3を分割対戦した場合のメモ代わりとして自分用に作成<br>
 処理はjavascriptのみでブラウザ完結、<br>
