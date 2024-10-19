@@ -1,40 +1,91 @@
-let hot = new Handsontable(container, {
-    data: [],  // 初期データ
-    colHeaders: ['プレイヤー名', '①', '②', '③', '備考'],
-    rowHeaders: true,
-    contextMenu: true,
-    manualRowResize: true,
-    manualColumnResize: true,
-    stretchH: 'all',
-    colWidths: [50, 30, 30, 30, 100],
-    columns: [
-        { readOnly: true },
-        { editor: false },
-        { editor: false },
-        { editor: false },
-        {}
-    ],
-    outsideClickDeselects: false,
-    afterChange: function(changes, source) {
-        if (source !== 'loadData') {  // 初期データロード時は保存しない
-            saveTableToLocalStorage();
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handsontable with Auto Save</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
         }
-    }
-});
+        #tableContainer {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .playerInputContainer {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
 
-// テーブルのデータをlocalStorageに保存する関数
-function saveTableToLocalStorage() {
-    const tableData = hot.getData();  // テーブルのデータを取得
-    localStorage.setItem('tableData', JSON.stringify(tableData));  // JSONに変換して保存
-    console.log('テーブルデータが自動保存されましたにゃん');
-}
+    <h1>Handsontable Example with Auto Save</h1>
 
-// ページロード時にlocalStorageからデータを読み込む
-function loadTableFromLocalStorage() {
-    const savedData = localStorage.getItem('tableData');
-    if (savedData) {
-        hot.loadData(JSON.parse(savedData));  // 保存されたデータをテーブルに読み込む
-    }
-}
+    <div class="playerInputContainer">
+        <input type="text" id="playerInput" placeholder="プレイヤー名を入力" />
+        <button onclick="addPlayer()">プレイヤー追加</button>
+    </div>
 
-loadTableFromLocalStorage();  // ページ読み込み時にデータをロード
+    <div id="tableContainer"></div>
+
+    <script>
+        // Handsontableの初期化
+        const container = document.getElementById('tableContainer');
+        let hot = new Handsontable(container, {
+            data: [],  // 初期データ
+            colHeaders: ['プレイヤー名', '①', '②', '③', '備考'],  // カラム名
+            rowHeaders: true,
+            contextMenu: true,
+            manualRowResize: true,
+            manualColumnResize: true,
+            stretchH: 'all',
+            colWidths: [50, 30, 30, 30, 100],  // カラム幅
+            columns: [
+                { readOnly: true },  // プレイヤー名は編集不可
+                { editor: false },   // ①は手動編集不可（クリックのみ）
+                { editor: false },   // ②は手動編集不可（クリックのみ）
+                { editor: false },   // ③は手動編集不可（特定の条件で入力不可）
+                {}  // 備考は自由に編集可能
+            ],
+            outsideClickDeselects: false,  // フォーカスが離れないように設定
+            afterChange: function(changes, source) {
+                if (source !== 'loadData') {  // データロード時には保存しない
+                    saveDataToLocalStorage();
+                }
+            }
+        });
+
+        // テーブルデータをlocalStorageに保存する関数
+        function saveDataToLocalStorage() {
+            const tableData = hot.getData();
+            localStorage.setItem('tableData', JSON.stringify(tableData));
+            console.log('テーブルデータが保存されましたにゃん');
+        }
+
+        // ページをロードする際にlocalStorageからデータを読み込む
+        window.addEventListener('load', function() {
+            const savedData = localStorage.getItem('tableData');
+            if (savedData) {
+                hot.loadData(JSON.parse(savedData));
+                console.log('テーブルデータがロードされましたにゃん');
+            }
+        });
+
+        // プレイヤーを追加する関数
+        function addPlayer() {
+            const playerName = document.getElementById('playerInput').value.trim();
+            if (playerName) {
+                hot.alter('insert_row');
+                hot.setDataAtCell(hot.countRows() - 1, 0, playerName);  // プレイヤー名をセット
+                document.getElementById('playerInput').value = '';  // 入力フィールドをクリア
+            } else {
+                alert('プレイヤー名を入力してくださいにゃん');
+            }
+        }
+    </script>
+
+</body>
+</html>
