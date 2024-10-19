@@ -3,46 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Handsontable with Auto Save</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/handsontable/dist/handsontable.full.min.js"></script>
+    <title>プレイヤーメモ帳</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/handsontable@12.1.0/dist/handsontable.full.min.css">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
+            margin: 0;
+            padding: 0;
+            height: 100vh; /* 高さを画面全体に設定 */
+            overflow: hidden; /* 画面を超えた部分を隠す */
+            background-image: url('f063.png');
+            background-repeat: no-repeat;
+            background-size: cover; /* 全画面に拡大縮小 */
+            background-position: center; /* 中央に配置 */
         }
-        #tableContainer {
+        #memoTable {
             width: 100%;
-            margin-bottom: 20px;
+            height: 300px;
+            background-color: rgba(255, 255, 255, 0.8); /* テーブル背景を少し透明にして見やすくする */
         }
-        .playerInputContainer {
+        button {
+            margin-top: 10px;
+        }
+        #playerInput {
             margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
+    <h1>プレイヤー結果管理</h1>
 
-    <h1>Handsontable Example with Auto Save</h1>
+    <!-- プレイヤー名入力 -->
+    <input type="text" id="playerInput" placeholder="プレイヤー名を入力" />
+    <button onclick="addPlayer()">プレイヤー追加</button>
+    <br>
 
-    <div class="playerInputContainer">
-        <input type="text" id="playerInput" placeholder="プレイヤー名を入力" />
-        <button onclick="addPlayer()">プレイヤー追加</button>
-    </div>
+    <!-- テーブル表示領域 -->
+    <div id="memoTable"></div>
+    <button onclick="deleteSelectedRow()">選択行削除</button>
+    <button onclick="clearTable()">クリア</button>
 
-    <div id="tableContainer"></div>
-
+    <script src="https://cdn.jsdelivr.net/npm/handsontable@12.1.0/dist/handsontable.full.min.js"></script>
     <script>
-        // Handsontableの初期化
-        const container = document.getElementById('tableContainer');
+        let container = document.getElementById('memoTable');
         let hot = new Handsontable(container, {
-            data: [],  // 初期データ
-            colHeaders: ['プレイヤー名', '①', '②', '③', '備考'],  // カラム名
+            data: [],
+            colHeaders: ['プレイヤー名', '①', '②', '③', '備考'],  // ヘッダーを変更
             rowHeaders: true,
             contextMenu: true,
             manualRowResize: true,
             manualColumnResize: true,
             stretchH: 'all',
-            colWidths: [50, 30, 30, 30, 100],  // カラム幅
+            colWidths: [50, 30, 30, 30, 100],  // セル幅の設定
             columns: [
                 { readOnly: true },  // プレイヤー名は編集不可
                 { editor: false },   // ①は手動編集不可（クリックのみ）
@@ -50,42 +61,111 @@
                 { editor: false },   // ③は手動編集不可（特定の条件で入力不可）
                 {}  // 備考は自由に編集可能
             ],
-            outsideClickDeselects: false,  // フォーカスが離れないように設定
+            outsideClickDeselects: false,  // ボタンを押してもフォーカスが離れない
             afterChange: function(changes, source) {
-                if (source !== 'loadData') {  // データロード時には保存しない
-                    saveDataToLocalStorage();
+                if (source !== 'loadData') {
+                    saveTable();  // 変更時に自動保存
+                }
+            },
+            afterOnCellMouseDown: function(_, coords) {
+                if (coords.col > 0 && coords.col < 4) {  // ①、②、③のセルの場合
+                    const currentValue = hot.getDataAtCell(coords.row, coords.col);
+                    const nextValue = cycleResult(currentValue);
+                    
+                    // ③の入力制限
+                    if (coords.col === 3 && checkWinsOrLosses(coords.row)) {
+                        hot.setDataAtCell(coords.row, coords.col, '');  // セルの値を空白にする
+                        alert("既に2勝または2敗しているので、③は入力できませんにゃん");
+                        return;
+                    }
+
+                    hot.setDataAtCell(coords.row, coords.col, nextValue);  // セルに次の値をセット
                 }
             }
         });
 
-        // テーブルデータをlocalStorageに保存する関数
-        function saveDataToLocalStorage() {
-            const tableData = hot.getData();
-            localStorage.setItem('tableData', JSON.stringify(tableData));
-            console.log('テーブルデータが保存されましたにゃん');
+        // 勝ち・負け・引き分け・空白の循環
+        function cycleResult(currentValue) {
+            if (currentValue === '〇') return '×';
+            if (currentValue === '×') return '△';
+            if (currentValue === '△') return '';  // 空白を選択
+            return '〇';  // デフォルトは勝ち
         }
 
-        // ページをロードする際にlocalStorageからデータを読み込む
-        window.addEventListener('load', function() {
-            const savedData = localStorage.getItem('tableData');
-            if (savedData) {
-                hot.loadData(JSON.parse(savedData));
-                console.log('テーブルデータがロードされましたにゃん');
-            }
-        });
-
-        // プレイヤーを追加する関数
+        // プレイヤーを追加する
         function addPlayer() {
             const playerName = document.getElementById('playerInput').value.trim();
             if (playerName) {
-                hot.alter('insert_row');
-                hot.setDataAtCell(hot.countRows() - 1, 0, playerName);  // プレイヤー名をセット
+                hot.alter('insert_row');  // 行を追加
+                hot.setDataAtCell(hot.countRows() - 1, 0, playerName);  // 追加した行のプレイヤー名をセット
                 document.getElementById('playerInput').value = '';  // 入力フィールドをクリア
+                saveTable();  // プレイヤー追加時にも保存
             } else {
                 alert('プレイヤー名を入力してくださいにゃん');
             }
         }
-    </script>
 
+        // 選択行を削除する
+        function deleteSelectedRow() {
+            const selected = hot.getSelected();
+            if (selected) {
+                const selectedRow = selected[0][0];  // 選択されたセルの行インデックス
+                hot.alter('remove_row', selectedRow);
+                saveTable();  // 行削除後に自動保存
+            } else {
+                alert('削除する行を選択してくださいにゃん');
+            }
+        }
+
+        // 2勝または2敗しているかチェックする
+        function checkWinsOrLosses(row) {
+            const results = [hot.getDataAtCell(row, 1), hot.getDataAtCell(row, 2)];
+            const wins = results.filter(result => result === '〇').length;
+            const losses = results.filter(result => result === '×').length;
+            return wins === 2 || losses === 2;  // 2勝または2敗しているとtrue
+        }
+
+        // ページ読み込み時にlocalStorageからテーブルのメモを読み込む
+        window.onload = function() {
+            const savedData = JSON.parse(localStorage.getItem("handsontableMemo"));
+            if (savedData) {
+                hot.loadData(savedData);
+            }
+            // テーブルの読み込みが完了した後に背景を設定
+            updateBackground();
+        };
+
+        // ページを離れる前に自動保存する
+        window.addEventListener("beforeunload", function() {
+            saveTable();  // ページを閉じる際に自動保存
+        });
+
+        // テーブルのメモを保存する
+        function saveTable() {
+            const tableData = hot.getData();
+            localStorage.setItem("handsontableMemo", JSON.stringify(tableData));
+        }
+
+        // テーブルのメモをクリアする
+        function clearTable() {
+            if (confirm("本当にテーブルのメモをクリアしますかにゃ？")) {
+                hot.loadData([]);  // テーブルを空にする
+                localStorage.removeItem("handsontableMemo");
+            }
+        }
+
+        // 背景を更新する関数
+        function updateBackground() {
+            document.body.style.backgroundImage = "url('f063.png')";
+            document.body.style.backgroundRepeat = "no-repeat";
+            document.body.style.backgroundSize = "cover"; // 画面の幅に合わせて拡大縮小
+            document.body.style.backgroundPosition = "center"; // 画面中央に配置
+        }
+
+        // ウィンドウサイズ変更時に背景を再設定
+        window.addEventListener("resize", function() {
+            updateBackground();  // サイズ変更時に背景を再設定
+        });
+    </script>
 </body>
 </html>
